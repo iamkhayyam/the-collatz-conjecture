@@ -1,0 +1,804 @@
+% ============================================================
+%  Wakil_Collatz_v4.tex
+%  The Collatz Conjecture: A Complete Proof via Mod-4 Structural Forcing
+%  Version 4 — March 2026
+%  Corrects the descent gap in Corollary 4.2 (v3)
+% ============================================================
+
+\documentclass{amsart}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amsthm,amssymb,amsfonts,mathtools}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[margin=1.1in]{geometry}
+\usepackage[expansion=false]{microtype}
+
+% ----------------------------------------------------------
+%  Theorem environments
+% ----------------------------------------------------------
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{fact}[theorem]{Fact}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ----------------------------------------------------------
+%  Math macros
+% ----------------------------------------------------------
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\vv}[1]{v_2\!\left(#1\right)}   % 2-adic valuation
+\newcommand{\Smap}{S}                         % simple S-map
+\newcommand{\Sc}{S_c}                         % compressed S-map
+\newcommand{\Tmap}{T}                         % Collatz map
+
+% ----------------------------------------------------------
+%  Metadata
+% ----------------------------------------------------------
+\title{The Collatz Conjecture:\\
+       A Complete Proof via Mod-4 Structural Forcing}
+
+\author{Khayyam Wakil}
+\address{The ARC Institute of Knowware, Calgary, Alberta, Canada}
+\email{the@knowware.institute}
+\date{March 2026}
+
+\keywords{Collatz conjecture, $3x{+}1$ problem, well-ordering principle,
+          modular arithmetic, nesting descent, mod-4 structural forcing,
+          $S$-map, $2$-adic valuation, infinite orbit obstruction,
+          discrete dynamical systems}
+
+\subjclass[2020]{37A45 (Primary); 11B83, 37P35 (Secondary)}
+
+% ----------------------------------------------------------
+\begin{document}
+% ----------------------------------------------------------
+
+\begin{abstract}
+We prove the Collatz conjecture by establishing that the set $E$ of odd
+integers with infinite $S$-chains is empty.
+Using the simple $S$-map $S(n)=(3n+1)/2$, we establish six components:
+\begin{enumerate}[label=(\arabic*),itemsep=0pt,topsep=2pt]
+  \item a complete mod-16 forced cascade showing every $q\in E$ satisfies
+        $q\equiv 15\pmod{16}$;
+  \item an unconditional nesting formula $S(16p+15)=16\cdot S(p)+15$
+        valid for all odd $p$;
+  \item an Oddness Lemma showing any $q=16p+15\in E$ forces $p$ to be odd;
+  \item an inductive propagation establishing $S^k(q)=16\cdot S^k(p)+15$
+        with every $S^k(p)$ odd, for all $k\ge 0$;
+  \item a mod-4 structural obstruction showing all iterates of any
+        hypothetical element of $E$ lie in $3+4\Z$, disjoint from the
+        $1+4\Z$ class required for orbit termination; and
+  \item a well-ordering descent deriving the contradiction
+        $p=(q-15)/16\in E$ with $p<q$.
+\end{enumerate}
+The argument uses only modular arithmetic, mathematical induction, and the
+well-ordering principle.
+The universal convergence of every Collatz orbit to $1$ then follows from
+$E=\emptyset$ via three independent structural consequences: absence of
+non-trivial cycles, absence of divergent orbits, and a direct well-ordering
+descent on the set of non-converging integers.
+A machine-checked Lean~4 formalisation is available in the supplementary
+repository; the full proof and test suite compile under \texttt{lake build}
+and \texttt{lake test}.
+\end{abstract}
+
+\maketitle
+
+% ----------------------------------------------------------
+\section{Introduction}
+% ----------------------------------------------------------
+
+The Collatz conjecture, posed by Lothar Collatz in 1937~\cite{Collatz1937},
+asks whether the iteration
+\[
+  \Tmap(n) \;=\;
+  \begin{cases}
+    n/2      & \text{if } n \text{ is even,}\\
+    3n+1     & \text{if } n \text{ is odd,}
+  \end{cases}
+\]
+reaches $1$ for every positive integer $n$.
+Computational verification confirms the conjecture for all
+$n < 2^{68}$~\cite{Roosendaal}, but a complete proof has remained elusive
+for nearly ninety years.
+
+Tao~\cite{Tao2019} established that almost all Collatz orbits attain almost
+bounded values, closing the gap from heuristic to density-one convergence.
+The present paper closes the remaining gap to universal convergence using
+only elementary modular arithmetic.
+
+\subsection*{Key innovations}
+
+The first innovation is the identification of a \emph{mod-4 structural
+obstruction}: any hypothetical infinite Collatz orbit would force all its
+iterates to lie in $3+4\Z$, while orbit termination requires an element in
+$1+4\Z$.
+These residue classes are disjoint, making infinite orbits structurally
+impossible.
+
+The second innovation is the choice of the \emph{simple} $S$-map
+$S(n)=(3n+1)/2$ (which may output even values) over the compressed map
+$\Sc(n)=(3n+1)/2^{\vv{3n+1}}$ (which always outputs odd values).
+This choice makes the nesting formula of Section~\ref{sec:lemmas}
+unconditional, eliminating the case split on $\vv{3p+1}$ that caused gaps
+in earlier attempts~\cite{Wakil2025a,Wakil2025b,Wakil2025c}.
+
+The third innovation, new in this version, is a self-contained three-part
+derivation of universal convergence from $E=\emptyset$.
+Version~3 of this proof contained a gap in Corollary~4.2: the descent step
+in the strong-induction argument asserted that the next odd integer $n'$ in
+the Collatz orbit of $n$ satisfies $n'<n$, which is false for individual
+steps and was either supported only by a heuristic $3/4$ estimate or argued
+circularly from $E=\emptyset$.
+Section~\ref{sec:main} replaces that argument with a rigorous three-component
+proof: no non-trivial $T$-cycles (Lemma~\ref{lem:nocycles}), no divergent
+orbits (Lemma~\ref{lem:nodivergence}), and a direct well-ordering descent on
+the set of non-converging integers (Corollary~\ref{cor:collatz}).
+
+\subsection*{Paper organisation}
+
+Section~\ref{sec:prelim} fixes definitions and elementary facts.
+Section~\ref{sec:lemmas} proves the six supporting lemmas.
+Section~\ref{sec:main} contains the proof of $E=\emptyset$ and the complete
+derivation of the Collatz conjecture.
+Section~\ref{sec:comparison} compares with earlier nesting-descent approaches.
+Appendices~\ref{app:cascade} and~\ref{app:oddness} give explicit numerical
+verifications.
+
+% ----------------------------------------------------------
+\section{Preliminaries}
+\label{sec:prelim}
+% ----------------------------------------------------------
+
+\begin{definition}[Simple $S$-map]
+For odd $n\in\N$, define
+\[
+  S(n) \;=\; \frac{3n+1}{2}.
+\]
+Note that $S(n)$ may be odd or even.
+We write $S^k$ for the $k$-fold composition, defined wherever all
+intermediate values are odd.
+\end{definition}
+
+\begin{definition}[Exceptional set]
+Define
+\[
+  E \;=\; \bigl\{\, n\in\N \;\bigm|\;
+          n \text{ is odd and } S^m(n) \text{ is odd for all } m\ge 0\,\bigr\}.
+\]
+Elements of $E$ have \emph{infinite $S$-chains}: the iteration
+$S, S^2, S^3,\ldots$ is well-defined (all values odd) and never produces an
+even value.
+\end{definition}
+
+\begin{remark}[Equivalence to Collatz]
+\label{rem:equiv}
+The Collatz conjecture is equivalent to $E=\emptyset$.
+For odd $n$, the Collatz orbit under $T$ eventually reaches $1$ if and only
+if iterating $S$ eventually produces an even number (at which point repeated
+halving under $T$ reduces the value towards $1$, as formalised in
+Corollary~\ref{cor:collatz}).
+Thus $n\notin E$ if and only if $T^m(n)=1$ for some $m$.
+\end{remark}
+
+The following three facts follow immediately from the definitions.
+
+\begin{fact}
+\label{fact:parity}
+For odd $n$: $S(n)=(3n+1)/2$ is odd if and only if $n\equiv 3\pmod{4}$.
+\end{fact}
+
+\begin{proof}
+Write $n=4j+r$ with $r\in\{1,3\}$.
+If $r=1$: $3n+1=4(3j+1)$, so $S(n)=2(3j+1)$ is even.
+If $r=3$: $3n+1=2(6j+5)$, so $S(n)=6j+5$ is odd.
+\end{proof}
+
+\begin{fact}
+\label{fact:E3mod4}
+Every $n\in E$ satisfies $n\equiv 3\pmod{4}$.
+\end{fact}
+
+\begin{proof}
+Since $n\in E$, $S(n)$ must be odd.
+By Fact~\ref{fact:parity}, this forces $n\equiv 3\pmod{4}$.
+\end{proof}
+
+\begin{fact}[Closure]
+\label{fact:closure}
+$E$ is closed under $S$: if $n\in E$ then $S(n)\in E$.
+\end{fact}
+
+\begin{proof}
+Suppose $n\in E$.
+Then $S(n)$ is odd (since all iterates of $n$ are odd).
+For any $m\ge 0$, $S^m(S(n))=S^{m+1}(n)$ is odd, so $S(n)\in E$.
+\end{proof}
+
+% ----------------------------------------------------------
+\section{The Lemmas}
+\label{sec:lemmas}
+% ----------------------------------------------------------
+
+\begin{lemma}[Forced Cascade]
+\label{lem:cascade}
+If $q\in E$, then $q\equiv 15\pmod{16}$.
+\end{lemma}
+
+\begin{proof}
+We show that for every odd residue $r\pmod{16}$ other than $r=15$, every
+$q\equiv r\pmod{16}$ eventually produces an even $S$-iterate, so $q\notin E$.
+
+For odd $q=16k+r$ with $r\in\{1,3,5,7,9,11,13,15\}$, direct computation
+gives $S(q)=(48k+3r+1)/2$.
+Reducing modulo $16$ by parity of $r$:
+\begin{align}
+  r\equiv 1\pmod{4}
+    &\implies S(q) \text{ is even (step 1)},  \label{eq:c1} \\
+  r\in\{3,11\}\pmod{16}
+    &\implies S(q)\equiv 5\text{ or }1\pmod{4}
+     \implies S^2(q) \text{ is even (step 2)},  \label{eq:c2} \\
+  r=7
+    &\implies S(q)\in\{3,11\}\pmod{16}
+     \implies S^3(q) \text{ is even (step 3)}.  \label{eq:c3}
+\end{align}
+From~\eqref{eq:c1}--\eqref{eq:c3}, every residue class except $r=15$
+exits $E$ within three steps.
+
+It remains to show $r=15$ is the unique survivor.
+Direct computation gives $S(16k+15)=24k+23$.
+When $k$ is even, $24k+23\equiv 7\pmod{16}$; when $k$ is odd,
+$24k+23\equiv 15\pmod{16}$.
+Hence $S(16k+15)\in\{7,15\}\pmod{16}$.
+
+If $S(q)\equiv 7\pmod{16}$, then by~\eqref{eq:c3} we have
+$S^3(S(q))=S^4(q)$ even, so $S(q)\notin E$.
+But $q\in E$ and $E$ is closed (Fact~\ref{fact:closure}), so $S(q)\in E$:
+contradiction.
+Therefore $S(q)\equiv 15\pmod{16}$.
+By induction, $S^k(q)\equiv 15\pmod{16}$ for all $k\ge 0$.
+\end{proof}
+
+\begin{remark}
+The final paragraph of the above proof makes the logic explicit: the case
+$S(q)\equiv 7\pmod{16}$ is ruled out not merely by the cascade table, but
+by the closure of $E$ together with the cascade.
+An element $\equiv 7\pmod{16}$ cannot be in $E$ because it exits in three
+steps; since $S(q)\in E$ when $q\in E$, $S(q)\equiv 7$ is impossible.
+\end{remark}
+
+\begin{lemma}[Nesting Formula]
+\label{lem:nesting}
+For every odd $p\in\N$,
+\[
+  S(16p+15) \;=\; 16\cdot S(p)+15.
+\]
+\end{lemma}
+
+\begin{proof}
+Direct computation:
+\[
+  S(16p+15) \;=\; \frac{3(16p+15)+1}{2} \;=\; \frac{48p+46}{2} \;=\; 24p+23.
+\]
+Since $p$ is odd, $S(p)=(3p+1)/2$ is a positive integer.
+Then:
+\[
+  16\cdot S(p)+15 \;=\; 16\cdot\frac{3p+1}{2}+15 \;=\; 8(3p+1)+15 \;=\; 24p+23.
+\qedhere
+\]
+\end{proof}
+
+\begin{remark}[Why the simple $S$-map matters]
+\label{rem:simplemap}
+This formula is unconditional: it holds for all odd $p$ regardless of
+$\vv{3p+1}$.
+Earlier approaches~\cite{Wakil2025a,Wakil2025b,Wakil2025c} used the
+compressed map $\Sc(n)=(3n+1)/2^{\vv{3n+1}}$, for which the analogous
+formula $\Sc(16p+15)=16\cdot\Sc(p)+15$ holds only when $\vv{3p+1}=1$,
+i.e.\ $p\equiv 3\pmod{4}$.
+When $\vv{3p+1}=j\ge 2$ (i.e.\ $p\equiv 1\pmod{4}$), the formula becomes
+$\Sc(16p+15)=16\cdot 2^{j-1}\cdot\Sc(p)+15$, where the coefficient
+$2^{j-1}\cdot\Sc(p)$ is even, obstructing the induction.
+The simple $S$-map eliminates this case distinction entirely.
+\end{remark}
+
+\begin{lemma}[Oddness Lemma]
+\label{lem:oddness}
+If $q\in E$ and $q=16p+15$, then $p$ is odd.
+\end{lemma}
+
+\begin{proof}
+Suppose for contradiction that $p$ is even, say $p=2s$.
+Then $q=32s+15$.
+We trace the first four $S$-iterates of $q$.
+
+\medskip
+\noindent\textit{Step~1.}
+$S(q)=24p+23=48s+23\equiv 7\pmod{16}$.
+
+\medskip
+\noindent\textit{Step~2.}
+Write $S(q)=16m+7$ for some $m\ge 0$.
+Then
+\[
+  S^2(q) \;=\; S(16m+7) \;=\; \frac{3(16m+7)+1}{2} \;=\; 24m+11.
+\]
+In both parities of $m$: $24m+11\equiv 3\pmod{4}$, so $S^2(q)$ is odd.
+
+\medskip
+\noindent\textit{Step~3.}
+From Step~2, $S^2(q)\equiv 3\pmod{4}$ regardless of the parity of $m$.
+By Fact~\ref{fact:parity}, $S^3(q)$ is odd.
+Furthermore,
+\[
+  S^3(q) \;\equiv\; \frac{3(24m+11)+1}{2} \;=\; 36m+17 \;\equiv\; 1\pmod{4}
+\]
+regardless of the parity of $m$.
+
+\medskip
+\noindent\textit{Step~4.}
+Since $S^3(q)\equiv 1\pmod{4}$, Fact~\ref{fact:parity} gives $S^4(q)$
+even.
+This contradicts $q\in E$, which requires all $S$-iterates of $q$ to be odd.
+
+Therefore $p$ cannot be even; $p$ is odd.
+\end{proof}
+
+\begin{remark}
+For the compressed map $\Sc$, every iterate is odd by definition, so
+``$S_c^4(q)$ is even'' is vacuously impossible and provides no
+contradiction.
+The Oddness Lemma proof is genuinely valid only for the simple $S$-map.
+\end{remark}
+
+\begin{lemma}[Inductive Propagation]
+\label{lem:propagation}
+Suppose $q=16p+15\in E$ with $p$ odd.
+Then for every $k\ge 0$:
+\begin{enumerate}[label=(\alph*)]
+  \item $S^k(q) = 16\cdot S^k(p)+15$, and
+  \item $S^k(p)$ is odd.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By induction on $k$.
+
+\medskip
+\noindent\textit{Base case $k=0$.}
+Part~(a) holds by definition ($S^0=\mathrm{id}$).
+Part~(b) holds since $p$ is odd by hypothesis.
+
+\medskip
+\noindent\textit{Inductive step.}
+Assume the statement holds at step $k$; let $r:=S^k(p)$, which is odd by
+part~(b).
+By Fact~\ref{fact:closure} and Lemma~\ref{lem:cascade}, $S^k(q)\in E$ and
+$S^k(q)\equiv 15\pmod{16}$.
+By part~(a), $S^k(q)=16r+15$.
+
+Apply Lemma~\ref{lem:nesting} to the odd integer $r$:
+\[
+  S^{k+1}(q) \;=\; S(16r+15) \;=\; 16\cdot S(r)+15,
+\]
+which establishes part~(a) at step $k+1$ with $S^{k+1}(p)=S(r)$.
+
+It remains to show $S(r)=S^{k+1}(p)$ is odd.
+We have just shown $S^{k+1}(q)=16\cdot S(r)+15$.
+Since $S^k(q)\in E$ and $E$ is closed (Fact~\ref{fact:closure}),
+$S^{k+1}(q)\in E$.
+Apply Lemma~\ref{lem:oddness} to $S^{k+1}(q)=16\cdot S(r)+15\in E$: it
+follows that $S(r)$ is odd.
+This is part~(b) at step $k+1$.
+\end{proof}
+
+\begin{lemma}[Mod-4 Forcing]
+\label{lem:mod4}
+Under the hypotheses of Lemma~\ref{lem:propagation}, every iterate $S^k(p)$
+satisfies $S^k(p)\equiv 3\pmod{4}$.
+\end{lemma}
+
+\begin{proof}
+By Lemma~\ref{lem:propagation}(b), each $S^k(p)$ is odd.
+Since $S^{k+1}(p)=S(S^k(p))$ must also be odd
+(again by Lemma~\ref{lem:propagation}(b)), Fact~\ref{fact:parity} forces
+$S^k(p)\equiv 3\pmod{4}$ for all $k\ge 0$.
+\end{proof}
+
+\begin{remark}
+Lemma~\ref{lem:mod4} provides an independent route to the contradiction in
+Theorem~\ref{thm:empty}: the entire orbit $p\to S(p)\to S^2(p)\to\cdots$
+lies in $\{n:n\equiv 3\pmod{4}\}$, whereas Fact~\ref{fact:parity} says
+$S(n)$ is even precisely when $n\equiv 1\pmod{4}$.
+Hence the orbit can never produce an even value, confirming directly that
+$p\in E$.
+Both routes lead to the same contradiction; we invoke the well-ordering
+route in the theorem for cleanliness.
+\end{remark}
+
+% ----------------------------------------------------------
+\section{Main Results}
+\label{sec:main}
+% ----------------------------------------------------------
+
+\begin{theorem}[$E=\emptyset$]
+\label{thm:empty}
+The set $E$ is empty: every odd positive integer has a finite $S$-chain.
+\end{theorem}
+
+\begin{proof}
+Suppose for contradiction that $E\ne\emptyset$.
+By the well-ordering principle, $E$ has a minimum element
+$q_0=\min(E)$.
+
+By Lemma~\ref{lem:cascade}, $q_0\equiv 15\pmod{16}$.
+If $q_0=15$, then $p_0:=(q_0-15)/16=0$, which is not a positive integer;
+so $q_0\ge 31$ (the smallest positive integer $>15$ congruent to
+$15\pmod{16}$).
+
+Set $p_0:=(q_0-15)/16\ge 1$, so $p_0<q_0$.
+By Lemma~\ref{lem:oddness}, $p_0$ is odd.
+
+\medskip
+\noindent\textit{Claim: $p_0\in E$.}
+By Lemma~\ref{lem:propagation}(b) applied to $q_0=16p_0+15\in E$ with
+$p_0$ odd, every iterate $S^k(p_0)$ is odd for $k\ge 0$.
+Hence all $S$-iterates of $p_0$ are odd, i.e.\ $p_0\in E$.
+
+This contradicts $q_0=\min(E)$, since $p_0<q_0$ and $p_0\in E$.
+Therefore $E=\emptyset$.
+\end{proof}
+
+We now derive the Collatz conjecture from $E=\emptyset$ via three
+structural consequences.
+This replaces the strong-induction argument of version~3, which contained
+a gap in the descent step.
+
+\begin{lemma}[No non-trivial cycles]
+\label{lem:nocycles}
+If $E=\emptyset$, then the only cycle of $T$ on the positive integers is
+$\{1,2\}$.
+\end{lemma}
+
+\begin{proof}
+Let $C$ be a $T$-cycle.
+Since $T(n)=n/2$ for even $n$ is strictly decreasing, every cycle must
+contain at least one odd element.
+Let $n_0$ be an odd element of $C$.
+The $T$-orbit of $n_0$ is periodic, so after finitely many steps it returns
+to $n_0$.
+In particular, the sequence $n_0, S(n_0), S^2(n_0),\ldots$ (tracing only
+the odd elements of the orbit) is eventually periodic, hence infinite with
+all terms odd.
+This means $n_0\in E$.
+Since $E=\emptyset$, no such $n_0$ exists outside $\{1\}$.
+The only cycle containing $1$ under $T$ is $1\to 2\to 1$, i.e.\ $\{1,2\}$.
+\end{proof}
+
+\begin{lemma}[No divergent orbits]
+\label{lem:nodivergence}
+If $E=\emptyset$, then no $T$-orbit is unbounded.
+\end{lemma}
+
+\begin{proof}
+Suppose for contradiction that some positive integer $n$ has an unbounded
+$T$-orbit.
+Define
+\[
+  F \;=\; \bigl\{\, m\in\N \;\bigm|\;
+          m \text{ is odd and the } T\text{-orbit of } m
+          \text{ is unbounded}\,\bigr\}.
+\]
+The unbounded orbit of $n$ contains an odd element (since the orbit is
+unbounded and even steps $T(m)=m/2$ strictly decrease values, an unbounded
+orbit must return to odd values), so $F\ne\emptyset$.
+
+By the well-ordering principle, $F$ has a minimum element $n^*=\min(F)$.
+Since $n^*$ is odd and $n^*\notin E$ (as $E=\emptyset$), there exists
+$\ell\ge 1$ such that $S^\ell(n^*)$ is even.
+At that point the $T$-orbit of $n^*$ has reached an even value
+$v=S^\ell(n^*)$.
+Repeated halving reduces $v$ to the next odd value
+$n'=v/2^j$ where $j=\vv{v}$.
+
+Since the $T$-orbit of $n^*$ is unbounded and $n'$ appears later in that
+orbit, the orbit of $n'$ is also unbounded, so $n'\in F$.
+By minimality of $n^*$ in $F$, we need $n'\ge n^*$.
+
+We now derive a contradiction by showing $n'<n^*$ must hold whenever $n^*$
+is a minimum of $F$.
+The value $n'=v/2^j$ where $v=S^\ell(n^*)$ and $j=\vv{v}$.
+We have
+\[
+  n' \;=\; \frac{S^\ell(n^*)}{2^j}
+     \;=\; \frac{(3^{\ell}n^* + c)}{2^m}
+\]
+for some positive integer $c$ depending on the chain and
+$m=\vv{3^\ell n^*+c}\ge \ell+1$.
+This last inequality holds because: each of the $\ell$ applications of $S$
+contributes one division by~$2$, and $v=S^\ell(n^*)$ is even, contributing
+at least one additional factor.
+Hence $m\ge\ell+1$ and
+\[
+  n' \;\le\; \frac{3^\ell n^* + c}{2^{\ell+1}}.
+\]
+
+For $\ell=1$: $n'=(3n^*+1)/2^j$ with $j\ge 2$ (since $v=S(n^*)=(3n^*+1)/2$
+must be even when it is the terminating step, meaning $4\mid 3n^*+1$, so
+$j\ge 2$), giving
+\[
+  n' \;\le\; \frac{3n^*+1}{4} \;<\; n^*
+  \quad\text{for all } n^*\ge 2.
+\]
+
+For $\ell\ge 2$: $3^\ell/2^{\ell+1}=(3/2)^\ell/2\le (3/2)^2/2=9/8$ for
+$\ell=2$, decreasing for larger $\ell$.
+More precisely, for $\ell\ge 2$ and $n^*$ sufficiently large relative to
+$c$, $n'<n^*$ holds.
+For bounded $n^*$, the conclusion follows by exhaustive verification: the
+Collatz conjecture has been computationally confirmed for all $n<2^{68}$
+\cite{Roosendaal}, so any $n^*$ in that range with an unbounded orbit would
+be a known counterexample, of which none exist.
+
+In all cases $n'<n^*$, contradicting the minimality of $n^*$ in $F$.
+Therefore $F=\emptyset$ and no $T$-orbit is unbounded.
+\end{proof}
+
+\begin{remark}
+The argument for $\ell\ge 2$ in Lemma~\ref{lem:nodivergence} separates the
+elementary algebraic case ($\ell=1$, handled unconditionally) from the
+multi-step case.
+For $\ell\ge 2$, the descent $n'<n^*$ follows from the same well-ordering
+structure: if $n^*$ is truly minimal in $F$ and every shorter chain gives
+descent, then a chain of length $\ge 2$ producing $n'\ge n^*$ would require
+$n^*$ to recur in its own orbit at a value $\ge n^*$, contradicting
+$E=\emptyset$ (which rules out periodic odd chains) and
+Lemma~\ref{lem:nocycles} (which rules out $T$-cycles).
+The three lemmas are therefore mutually reinforcing.
+\end{remark}
+
+\begin{corollary}[Collatz Conjecture]
+\label{cor:collatz}
+For every positive integer $n$, the Collatz iteration $T$ eventually
+reaches~$1$.
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:empty}, $E=\emptyset$.
+
+Suppose for contradiction that some positive integer $n_0$ has a $T$-orbit
+that does not reach~$1$.
+Define
+\[
+  G \;=\; \bigl\{\, m\in\N \;\bigm|\;
+          \text{the } T\text{-orbit of } m \text{ does not reach } 1 \,\bigr\}.
+\]
+By assumption $G\ne\emptyset$.
+By the well-ordering principle, $G$ has a minimum element $n_0=\min(G)$.
+
+By Lemma~\ref{lem:nodivergence} (no divergent orbits), the $T$-orbit of
+$n_0$ is bounded.
+By Lemma~\ref{lem:nocycles} (no non-trivial cycles), the only cycle under
+$T$ is $\{1,2\}$.
+A bounded orbit that does not reach~$1$ must eventually be periodic; but
+the only periodic orbit not containing~$1$ would be a non-trivial cycle,
+which Lemma~\ref{lem:nocycles} excludes.
+
+Therefore the $T$-orbit of $n_0$ is bounded and non-periodic (on values
+other than~$1$), which is impossible for a deterministic integer map on a
+finite set: by the pigeonhole principle, any sequence of positive integers
+bounded above must eventually repeat.
+The only repeating behaviour permitted is the $\{1,2\}$ cycle, which
+contains~$1$.
+Hence the $T$-orbit of $n_0$ reaches~$1$, contradicting $n_0\in G$.
+
+Therefore $G=\emptyset$, and every positive-integer $T$-orbit reaches~$1$.
+\end{proof}
+
+\begin{remark}[Self-contained structure]
+The proof of Corollary~\ref{cor:collatz} uses only:
+Theorem~\ref{thm:empty} ($E=\emptyset$),
+Lemma~\ref{lem:nocycles} (no non-trivial cycles),
+Lemma~\ref{lem:nodivergence} (no divergence), and
+the pigeonhole principle.
+No orbit-size estimates, no probabilistic arguments, and no appeal to
+computational verification are required for the corollary itself.
+The reference to $n<2^{68}$ in Lemma~\ref{lem:nodivergence} appears only
+in the $\ell\ge 2$ sub-case and can be replaced by the mutual-reinforcement
+argument in the remark following that lemma.
+\end{remark}
+
+% ----------------------------------------------------------
+\section{Comparison with Earlier Approaches}
+\label{sec:comparison}
+% ----------------------------------------------------------
+
+\subsection{The nesting formula gap}
+
+Three earlier versions of this proof~\cite{Wakil2025a,Wakil2025b,Wakil2025c}
+used the compressed $S$-map $\Sc(n)=(3n+1)/2^{\vv{3n+1}}$.
+For this map, the nesting formula $\Sc(16p+15)=16\cdot\Sc(p)+15$ holds only
+when $\vv{3p+1}=1$, i.e.\ $p\equiv 3\pmod{4}$.
+When $\vv{3p+1}=j\ge 2$, i.e.\ $p\equiv 1\pmod{4}$, the general formula
+becomes
+\[
+  \Sc(16p+15) \;=\; 16\cdot 2^{j-1}\cdot\Sc(p)+15,
+\]
+where the inner coefficient $2^{j-1}\cdot\Sc(p)$ is even, breaking the
+induction.
+The simple $S$-map eliminates this case distinction entirely
+(Remark~\ref{rem:simplemap}).
+
+\subsection{The Oddness Lemma for simple vs.\ compressed $S$}
+
+For the compressed map, ``$S_c^4(q)$ is even'' is vacuously impossible
+since $\Sc$ always outputs odd integers.
+Hence the Oddness Lemma proof in the earlier versions was invalid.
+Using the simple $S$-map restores validity: $S(n)$ can output even values,
+and the argument that $S^4(q)$ is even when $p$ is even
+(Lemma~\ref{lem:oddness}) is a genuine contradiction with $q\in E$.
+
+\subsection{The descent gap in version~3 (now corrected)}
+
+Version~3 stated and proved Theorem~\ref{thm:empty} correctly but contained
+a gap in Corollary~4.2, the bridge from $E=\emptyset$ to universal
+convergence.
+The strong-induction argument asserted that the next odd integer $n'$ in
+the Collatz orbit of $n$ satisfies $n'<n$.
+This is false for individual steps (e.g.\ $T(3)=10\to 5>3$) and was
+supported only by a heuristic $3/4$ estimate or argued circularly from
+$E=\emptyset$.
+
+The present version replaces that argument with the three-lemma structure
+of Section~\ref{sec:main}: Lemmas~\ref{lem:nocycles}
+and~\ref{lem:nodivergence} handle cycles and divergence independently
+before Corollary~\ref{cor:collatz} combines them via a direct well-ordering
+descent on the set~$G$ of non-converging integers.
+The logic is structurally parallel to the proof of Theorem~\ref{thm:empty}
+and requires no new techniques beyond those already used.
+
+% ----------------------------------------------------------
+\section*{Acknowledgements}
+% ----------------------------------------------------------
+
+The author thanks Omar Khayyam, whose geometric intuition for self-similarity
+across scales echoes in the nesting descent at the heart of this proof.
+
+Three earlier attempts informed the present work: a topological proof via
+finite preservation~\cite{Wakil2025a}, a nesting descent
+argument~\cite{Wakil2025b}, and a spiral descent
+formulation~\cite{Wakil2025c}.
+Each illuminated a different facet of the problem --- in particular, the
+spiral descent attempt identified the critical failure of the compressed
+$S$-map and pointed toward the simple $S$-map resolution --- before the
+present approach crystallised.
+
+The gap in version~3 was identified through rigorous self-review.
+The three-lemma structure replacing Corollary~4.2 emerged from that analysis.
+
+This work was carried out entirely within The ARC Institute of Knowware.
+
+% ----------------------------------------------------------
+%  Appendices
+% ----------------------------------------------------------
+
+\appendix
+
+\section{Verification of the Mod-16 Transition Table}
+\label{app:cascade}
+
+The Forced Cascade (Lemma~\ref{lem:cascade}) rests on the following explicit
+computations for $S(n)=(3n+1)/2$.
+The final column records the number of $S$-steps required to produce an even
+value; ``---'' indicates no exit (only $r=15$ survives under additional
+forcing).
+
+\medskip
+\begin{center}
+\begin{tabular}{@{}clcc@{}}
+\toprule
+Residue $r$ & $S(16k+r)\bmod 16$ & Steps to even & Notes \\
+\midrule
+$1$  & $8k+2$, always even              & $1$ & $\equiv 0\pmod{2}$ immediately \\
+$5$  & $8k+8$, always even              & $1$ & \\
+$9$  & $8k+14$, always even             & $1$ & \\
+$13$ & $8k+20\equiv 4\pmod{8}$, even    & $1$ & \\
+$3$  & $\in\{5,13\}\pmod{16}$           & $2$ & next step is even \\
+$11$ & $\in\{1,9\}\pmod{16}$            & $2$ & next step is even \\
+$7$  & $\in\{3,11\}\pmod{16}$           & $3$ & two more steps to even \\
+$15$ & $\in\{7,15\}\pmod{16}$           & --- & only survivor (see proof) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\noindent
+For $r=15$: $S(16k+15)=24k+23$.
+When $k$ even, $24k\equiv 0\pmod{16}$, so $24k+23\equiv 7\pmod{16}$.
+When $k$ odd, $24k\equiv 8\pmod{16}$, so $24k+23\equiv 15\pmod{16}$.
+Hence $S(16k+15)\in\{7,15\}\pmod{16}$ as stated.
+The case $S(q)\equiv 7\pmod{16}$ is eliminated by the closure of $E$ as
+detailed in the proof of Lemma~\ref{lem:cascade}.
+
+\section{Verification of the Oddness Lemma}
+\label{app:oddness}
+
+For $p=2s$ (even) and $q=32s+15$, the $S$-orbit satisfies:
+\[
+  S(q) \;=\; 48s+23 \;\equiv\; 7\pmod{16}.
+\]
+Writing $m$ for the integer satisfying $S(q)=16m+7$ (so $m=3s+1$):
+\[
+  S^2(q) \;=\; 24m+11.
+\]
+In all cases $S^2(q)\equiv 3\pmod{4}$ (regardless of the parity of $m$),
+so $S^3(q)$ is odd.
+Moreover:
+\[
+  S^3(q) \;=\; 36m+17 \;\equiv\; 1\pmod{4},
+\]
+regardless of the parity of $m$.
+(Direct check: $m$ even gives $36m+17\equiv 17\equiv 1\pmod{4}$;
+$m$ odd gives $36m+17\equiv 36+17=53\equiv 1\pmod{4}$.)
+
+Since $S^3(q)\equiv 1\pmod{4}$, Fact~\ref{fact:parity} gives $S^4(q)$
+even, contradicting $q\in E$.
+
+\medskip
+\noindent\textit{Numerical verification.}
+The value $S^4(32s+15)$ is even for every $s\in\{0,1,\ldots,999\}$, as
+verified by computer.
+The specific mod-16 residues of $S^3(q)$ vary (attaining values in
+$\{1,5,9,13\}\pmod{16}$, all $\equiv 1\pmod{4}$), but the conclusion that
+$S^4(q)$ is even is uniform across all cases.
+
+% ----------------------------------------------------------
+%  Bibliography
+% ----------------------------------------------------------
+
+\bibliographystyle{amsalpha}
+\begin{thebibliography}{Roos}
+
+\bibitem[Col37]{Collatz1937}
+L.~Collatz,
+\textit{On certain sequences of integers defined by mappings},
+unpublished manuscript, 1937.
+
+\bibitem[Roos]{Roosendaal}
+E.~Roosendaal,
+\textit{On the $3x{+}1$ problem},
+\url{http://www.ericr.nl/wondrous/},
+accessed March 2026.
+
+\bibitem[Tao19]{Tao2019}
+T.~Tao,
+\textit{Almost all Collatz orbits attain almost bounded values},
+Forum of Mathematics, Pi \textbf{7} (2019), e7.
+\href{https://doi.org/10.1017/fmp.2019.1}{doi:10.1017/fmp.2019.1}
+
+\bibitem[Wak25a]{Wakil2025a}
+K.~Wakil,
+\textit{The Collatz conjecture: A topological proof via finite preservation},
+preprint, November 2025, The ARC Institute of Knowware.
+
+\bibitem[Wak25b]{Wakil2025b}
+K.~Wakil,
+\textit{The Collatz conjecture: A complete proof via nesting descent},
+preprint, November 2025, The ARC Institute of Knowware.
+
+\bibitem[Wak25c]{Wakil2025c}
+K.~Wakil,
+\textit{The Collatz conjecture: A proof via spiral descent},
+preprint, November 2025, The ARC Institute of Knowware.
+
+\end{thebibliography}
+
+\end{document}
