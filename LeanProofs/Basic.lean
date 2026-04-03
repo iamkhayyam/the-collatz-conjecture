@@ -214,3 +214,71 @@ theorem odd_eventually_even_smap (n : ℕ) (hn : Odd n) :
   by_contra h
   push Not at h
   exact E_empty n ⟨hn, h⟩
+
+-- ============================================================
+--  Bridge Lemmas (Sections 4.2–4.4 of the paper)
+-- ============================================================
+
+/-- Parity obstruction: 3^a ≠ 2^b for a, b ≥ 1.
+    3^a is always odd; 2^b is always even. These are disjoint. -/
+theorem three_pow_ne_two_pow (a b : ℕ) (_ha : a ≥ 1) (hb : b ≥ 1) :
+    3 ^ a ≠ 2 ^ b := by
+  have h_odd : Odd (3 ^ a) := by apply Odd.pow; decide
+  have h_even : Even (2 ^ b) := by
+    apply Even.pow_of_ne_zero (⟨1, by ring⟩)
+    omega
+  intro heq
+  rw [heq] at h_odd
+  rw [Nat.odd_iff] at h_odd
+  rw [Nat.even_iff] at h_even
+  omega
+
+/-- Lemma 4.2 (Paper): No non-trivial T-cycles exist.
+    The only cycle of the Collatz map T on ℕ is {1, 2}.
+
+    STATUS: The key step is sorried — see note below.
+
+    The paper's proof (lines 472–484) argues: any odd element n₀ of a T-cycle
+    has S^k(n₀) all odd (since they stay in the finite cycle), so n₀ ∈ E = ∅.
+
+    GAP: This argument implicitly uses the *compressed* S-map Sᶜ (which always
+    outputs odd values by construction). But `inE` here uses the *simple* S-map
+    Smap, which can output even values when n ≡ 1 (mod 4). An element in a
+    T-cycle can have Smap(n) even without contradiction — it would simply not
+    be in E. So the paper's route does not directly apply to `inE`.
+
+    CORRECT APPROACH (not yet formalised): The orbit equation for a T-cycle
+    with a odd steps and b even steps is 3^a · n₀ + c = 2^b · n₀ (c > 0).
+    `three_pow_ne_two_pow` handles the a = b sub-case. The full derivation
+    that no n₀ > 2 satisfies the orbit equation requires additional arithmetic
+    machinery. -/
+theorem no_nontrivial_cycles (n : ℕ) (hn : n > 2) (K : ℕ) (hK : K > 0) :
+    collatz^[K] n ≠ n := by
+  sorry
+
+/-- Lemma 4.3 (Paper): No T-orbit is unbounded.
+
+    STATUS: Sorried — see note below.
+
+    The paper's proof has two sub-cases:
+    • ℓ = 1: n' = (3n*+1)/2^j with j ≥ 2, giving n' ≤ (3n*+1)/4 < n*. Clean.
+    • ℓ ≥ 2: the paper falls back on "n* sufficiently large" or the
+      computational bound n < 2^68, neither of which closes in Lean.
+
+    The ℓ ≥ 2 sub-case is the remaining gap for this lemma. -/
+theorem no_divergent_orbits (n : ℕ) :
+    ∃ M : ℕ, ∀ k : ℕ, collatz^[k] n ≤ M := by
+  sorry
+
+/-- Corollary 4.4 (Paper): Every positive integer's Collatz orbit reaches 1.
+
+    STATUS: Sorried pending `no_nontrivial_cycles` and `no_divergent_orbits`.
+
+    Once both bridge lemmas are proved, this follows by:
+    (1) the orbit is bounded (no_divergent_orbits),
+    (2) the only cycle is {1,2} (no_nontrivial_cycles),
+    (3) a bounded orbit must eventually repeat, and the only repeat
+        permitted is the {1,2} cycle, so 1 must be reached. -/
+theorem collatz_convergence (n : ℕ) (hn : n ≥ 1) :
+    ∃ k : ℕ, collatz^[k] n = 1 := by
+  sorry
